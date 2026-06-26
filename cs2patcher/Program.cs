@@ -32,19 +32,21 @@ bool apply = args.Contains("--apply");
 
 void Print(PatchSummary r)
 {
-    if (r.IsSkipped)
-        Console.WriteLine($"WARN:{r.DllName}:{r.SkipReason}");
-    else if (r.AlreadyOk)
-        Console.WriteLine($"SKIP:{r.DllName}:already patched or pattern not found");
-    else if (r.DryRun)
-        Console.WriteLine($"DRY:{r.DllName}:{r.FixesApplied} fixes would be applied");
-    else
-        Console.WriteLine($"OK:{r.DllName}:{r.FixesApplied} fixes applied");
+    if (r.IsSkipped) Console.WriteLine($"WARN:{r.DllName}:{r.SkipReason}");
+    else if (r.AlreadyOk) Console.WriteLine($"SKIP:{r.DllName}:already patched or pattern not found");
+    else if (r.DryRun) Console.WriteLine($"DRY:{r.DllName}:{r.FixesApplied} fixes would be applied");
+    else Console.WriteLine($"OK:{r.DllName}:{r.FixesApplied} fixes applied");
 }
 
 Print(ColossalIoPatcher.Patch(managedDir, dryRun: !apply));
+Print(LongFileOpenWineFallbackPatcher.Patch(managedDir, dryRun: !apply));
 Print(AssetDatabasePatcher.Patch(managedDir, dryRun: !apply));
-if (fullMode)
-    Print(PdxSdkPatcher.Patch(managedDir, dryRun: !apply));
+Print(AssetDatabaseDataSourceGuardPatcher.Patch(managedDir, dryRun: !apply));
+Print(AssetDatabaseDataSourceGuardPatcher.PatchSteamCloudNullTask(managedDir, dryRun: !apply));
+Print(InjectDlcCachePatcher.Patch(managedDir, dryRun: !apply));
+Print(PlatformManagerIsDlcOwnedPatcher.Patch(managedDir, dryRun: !apply));
+Print(SteamworksDlcMapperMapPatcher.Patch(managedDir, dryRun: !apply));
+Print(RiderPathLocatorPatcher.Patch(managedDir, dryRun: !apply));
+if (fullMode) Print(PdxSdkPatcher.Patch(managedDir, dryRun: !apply));
 
 return 0;

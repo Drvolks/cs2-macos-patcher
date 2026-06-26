@@ -304,13 +304,61 @@ def main():
     else:
         print(yellow("Completed with warnings — check the output above.\n"))
 
-    print("To restore original DLLs:")
+    # Step 6 (full patch only): post-process gameui/index.css so the Cohtml UI
+    # renderer (bundled in Cities2_Data/Plugins/x86_64/cohtml_*.dll) can parse
+    # it. Cohtml 1.64 doesn't support CSS variables in shorthand declarations
+    # (`border-width: var(--X)`) or the `gap:` flex property — both are used
+    # heavily in CS2's bundled stylesheet. Without this, the UI loads but
+    # SVG icons have 0×0 dimensions and layout collapses, producing a grey box.
+    if full_patch:
+        # Re-encrypt .ntl files with the new deterministic key (Fix 25).
+        css_script = os.path.join(SCRIPT_DIR, "cs2-css-cohtml-fix.py")
+        ntl_script = os.path.join(SCRIPT_DIR, "ntl-reencrypt.py")
+        content_dir = os.path.normpath(os.path.join(managed_dir, "..", "Content"))
+        ui_dir = os.path.normpath(os.path.join(managed_dir, "..", "Content", "Game", "UI"))
+        index_css = os.path.join(ui_dir, "index.css")
+
+        if os.path.isdir(content_dir):
+            try:
+                result = subprocess.run(
+                    [sys.executable, ntl_script, content_dir],
+                    capture_output=True, text=True
+                )
+                for line in result.stdout.strip().splitlines():
+                    if line.strip():
+                        print(f"  {line}")
+            except Exception as ex:
+                print(yellow(f"  .ntl re-encrypt script failed: {ex}"))
+        else:
+            print(yellow(f"  Content dir not found at {content_dir}; skipping .ntl re-encrypt"))
+
+        if os.path.isfile(index_css):
+            try:
+                subprocess.run([sys.executable, css_script, index_css],
+                               check=False)
+            except Exception as ex:
+                print(yellow(f"  CSS post-processor failed: {ex}"))
+        else:
+            print(yellow(f"  index.css not found at {index_css}; skipping"))
+
+    # List backup files for the user. Each patch run creates a new timestamped
+    # backup (`.bak.YYYYMMDD-HHMMSS`) so re-runs never overwrite history. The
+    # first run also creates a plain `.bak` that points at the most recent
+    # pre-patch snapshot.
+    print()
+    print("Backups are at:")
     print(f'  cd "{managed_dir}"')
-    for dll in ["Colossal.IO.dll", "Colossal.IO.AssetDatabase.dll"] + \
+    print("  ls *.bak*    # shows plain `.bak` plus timestamped `.bak.YYYYMMDD-HHMMSS` files")
+    print()
+    print("To restore from the most-recent pre-patch backup:")
+    for dll in ["Colossal.IO.dll", "Colossal.IO.AssetDatabase.dll", "Colossal.PSI.Common.dll", "Game.dll"] + \
                (["PDX.SDK.dll"] if full_patch else []):
         bak = os.path.join(managed_dir, dll + ".bak")
         if os.path.isfile(bak):
             print(f'  cp "{dll}.bak" "{dll}"')
+    print()
+    print("To restore a specific older backup:")
+    print('  cp "Colossal.IO.dll.bak.20260626-122500" "Colossal.IO.dll"')
 
     print()
 
